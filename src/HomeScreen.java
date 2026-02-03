@@ -14,13 +14,29 @@ public class HomeScreen extends JFrame{
 
         // instance of panel
         ExpandableListPanel eListPanel = new ExpandableListPanel();
+        eListPanel.setPreferredSize(new Dimension(380, 400));
+
 
         // Buttons
         GoodButton addButton = new GoodButton("Add Recipe");
         GoodButton deleteButton = new GoodButton("Delete Selected Recipes");
 
         addButton.addActionListener(e -> {
-            eListPanel.addListItem("Hopium", "Hmm");
+            AddRecipeWindow win = new AddRecipeWindow(recipe -> {
+                StringBuilder body = new StringBuilder();
+
+                body.append("<b>Description:</b><br>");
+                body.append(recipe.description);
+                body.append("<br><br><b>Ingredients:</b><br>");
+
+                for (String ing : recipe.ingredients) {
+                    body.append("-  ").append(ing).append("<br>");
+                }
+
+                eListPanel.addListItem(recipe.title, body.toString());
+            });
+
+            win.setVisible(true);
         });
 
         deleteButton.addActionListener(e -> {
@@ -43,7 +59,7 @@ public class HomeScreen extends JFrame{
     }
 }
 
-class ExpandableListPanel extends JPanel{
+final class ExpandableListPanel extends JPanel{
     private JPanel listContainer;
 
     private List<ItemWrapper> items = new ArrayList<>();
@@ -52,10 +68,12 @@ class ExpandableListPanel extends JPanel{
     private class ItemWrapper{
         JCheckBox checkBox;
         JPanel panel;
+        String title;
 
-        ItemWrapper(JCheckBox cb, JPanel p){
+        ItemWrapper(JCheckBox cb, JPanel p, String t){
             this.checkBox = cb;
             this.panel = p;
+            this.title = t;
         }
     }
 
@@ -78,7 +96,7 @@ class ExpandableListPanel extends JPanel{
 
     public void addListItem(String title, String description){
         JPanel item = new JPanel(new BorderLayout());
-        item.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+        // item.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
         item.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.LIGHT_GRAY));
 
         JCheckBox cb = new JCheckBox();
@@ -87,25 +105,29 @@ class ExpandableListPanel extends JPanel{
         header.setHorizontalAlignment(SwingConstants.LEFT);
         header.setFocusPainted(false);
 
-        JLabel content = new JLabel("<html><div style='padding:10px;'>" + description + "</div></html>");
-        content.setVisible(false);
+        JEditorPane content = new JEditorPane("text/html",
+        "<div style='padding:10px;'>" + description + "</div>");
+        content.setEditable(false);
+        JScrollPane contentScroll = new JScrollPane(content);
+        contentScroll.setPreferredSize(new Dimension(300, 120));
+        contentScroll.setVisible(false);
 
         //wrap all in single panel component
         JPanel fullBar = new JPanel(new BorderLayout());
         fullBar.add(cb, BorderLayout.WEST);
         fullBar.add(header, BorderLayout.NORTH);
-        fullBar.add(content, BorderLayout.SOUTH);
+        fullBar.add(contentScroll, BorderLayout.CENTER);
 
-        item.add(fullBar, BorderLayout.NORTH);
+        item.add(fullBar, BorderLayout.CENTER);
 
         header.addActionListener(e -> {
-            content.setVisible(!content.isVisible());
+            contentScroll.setVisible(!contentScroll.isVisible());
             revalidate();
             repaint();
         });
 
         listContainer.add(item);
-        items.add(new ItemWrapper(cb, item));
+        items.add(new ItemWrapper(cb, item, title));
 
         listContainer.revalidate();
         listContainer.repaint();
@@ -123,6 +145,15 @@ class ExpandableListPanel extends JPanel{
 
         listContainer.revalidate();
         listContainer.repaint();
+    }
+
+    public List<String> getAllTitles(){
+        List<String> result = new ArrayList<>();
+        for(ItemWrapper w: items){
+            result.add(w.title);
+        }
+
+        return result;
     }
 }
 

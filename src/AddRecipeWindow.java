@@ -5,44 +5,116 @@ import java.util.ArrayList;
 import javax.swing.border.EmptyBorder;
 
 public class AddRecipeWindow extends JFrame{
+    private RecipeListener listener;
 
-    public AddRecipeWindow(){
+    public AddRecipeWindow(RecipeListener listener){
+        this.listener = listener;
+
         setTitle("Add new Recipe");
         setSize(400,600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
 
-        JLabel recipeTitleLabel = new JLabel("Enter Recipe Name");
+        JLabel recipeTitleLabel = new JLabel("Enter Recipe Name:");
         JTextField recipeTitleInput = new JTextField();
+        recipeTitleInput.setPreferredSize(new Dimension(100,30));
+
+        JPanel titleContainer = new JPanel();
+        titleContainer.setLayout(new FlowLayout());
+        titleContainer.add(recipeTitleLabel);
+        titleContainer.add(recipeTitleInput);
 
         JLabel descLabel = new JLabel("Enter Description:");
         JTextArea descInput = new JTextArea();
+        descInput.setPreferredSize(new Dimension(350, 250));
+
+        JPanel descContainer = new JPanel();
+        descContainer.setLayout(new FlowLayout());
+        descContainer.add(descLabel);
+        descContainer.add(descInput);
 
         JLabel ingredientsLabel = new JLabel("Ingredients");
-        JList ingredienList = new JList<>();
-    }
+        ExpandableIngredientsPanel ingredientList = new ExpandableIngredientsPanel();
+        
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new AddRecipeWindow().setVisible(true));
+        JPanel ingredientsContainer = new JPanel();
+
+        GoodButton addIngredient = new GoodButton("Add Ingredients");
+        GoodButton removeIngredient = new GoodButton("Remove Ingredients");
+
+        addIngredient.addActionListener(e -> {
+            ingredientList.addListItem();
+        });
+
+        removeIngredient.addActionListener(e -> {
+            ingredientList.deleteSelectedListItem();
+        });
+
+        JPanel buttonBar = new JPanel();
+        buttonBar.setLayout(new FlowLayout());
+        buttonBar.add(addIngredient);
+        buttonBar.add(removeIngredient);
+        
+        ingredientsContainer.setLayout(new BoxLayout(ingredientsContainer, BoxLayout.Y_AXIS));
+        ingredientsContainer.add(ingredientsLabel);
+        ingredientsContainer.add(ingredientList);
+        ingredientsContainer.add(buttonBar);
+
+        ingredientsLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        ingredientList.setAlignmentX(Component.CENTER_ALIGNMENT);
+        buttonBar.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JPanel centerWrapper = new JPanel();
+        centerWrapper.setLayout(
+            new BoxLayout(centerWrapper, BoxLayout.Y_AXIS)
+        );
+
+        centerWrapper.add(descContainer);
+        centerWrapper.add(ingredientsContainer);
+
+        GoodButton saveButton = new GoodButton("Save Recipe");
+        saveButton.addActionListener(e -> {
+            String title = recipeTitleInput.getText();
+            String desc = descInput.getText();
+
+            List<String> ingredients = ingredientList.getAllTitles();
+
+            Recipe r = new Recipe(title, desc, ingredients);
+
+            listener.onRecipeAdded(r);
+            dispose();
+        });
+
+        add(titleContainer, BorderLayout.NORTH);
+        add(centerWrapper, BorderLayout.CENTER);
+        add(saveButton, BorderLayout.SOUTH);
+
+        setLocationRelativeTo(null);
     }
 }
 
-class ExpandableListPanel extends JPanel{
+class ExpandableIngredientsPanel extends JPanel{
     private JPanel listContainer;
 
     private List<ItemWrapper> items = new ArrayList<>();
 
     //helper inner class for maintaining checkboxes and item data
-    private class ItemWrapper{
-        JCheckBox checkBox;
-        JPanel panel;
+    private class ItemWrapper {
+    JCheckBox checkBox;
+    JPanel panel;
+    JTextField nameField;
+    JTextField qtyField;
 
-        ItemWrapper(JCheckBox cb, JPanel p){
-            this.checkBox = cb;
-            this.panel = p;
-        }
+    ItemWrapper(JCheckBox cb, JPanel p, JTextField n, JTextField q) {
+        checkBox = cb;
+        panel = p;
+        nameField = n;
+        qtyField = q;
     }
+}
 
-    public ExpandableListPanel(){
+
+    public ExpandableIngredientsPanel(){
         // BorderLayout so scrollpanel fills the Jpanel
         setLayout(new BorderLayout());
 
@@ -59,40 +131,36 @@ class ExpandableListPanel extends JPanel{
         add(scrollPane, BorderLayout.CENTER);     
     }
 
-    public void addListItem(String title, String description){
+    public void addListItem() {
+
         JPanel item = new JPanel(new BorderLayout());
-        item.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+        item.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
         item.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.LIGHT_GRAY));
 
         JCheckBox cb = new JCheckBox();
 
-        GoodButton header = new GoodButton(title);
-        header.setHorizontalAlignment(SwingConstants.LEFT);
-        header.setFocusPainted(false);
+        JTextField nameField = new JTextField(10);
+        JTextField qtyField  = new JTextField(6);
 
-        JLabel content = new JLabel("<html><div style='padding:10px;'>" + description + "</div></html>");
-        content.setVisible(false);
+        JPanel fields = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        fields.add(new JLabel("Item:"));
+        fields.add(nameField);
+        fields.add(new JLabel("Qty:"));
+        fields.add(qtyField);
 
-        //wrap all in single panel component
         JPanel fullBar = new JPanel(new BorderLayout());
         fullBar.add(cb, BorderLayout.WEST);
-        fullBar.add(header, BorderLayout.NORTH);
-        fullBar.add(content, BorderLayout.SOUTH);
+        fullBar.add(fields, BorderLayout.CENTER);
 
-        item.add(fullBar, BorderLayout.NORTH);
-
-        header.addActionListener(e -> {
-            content.setVisible(!content.isVisible());
-            revalidate();
-            repaint();
-        });
+        item.add(fullBar, BorderLayout.CENTER);
 
         listContainer.add(item);
-        items.add(new ItemWrapper(cb, item));
+        items.add(new ItemWrapper(cb, item, nameField, qtyField));
 
         listContainer.revalidate();
         listContainer.repaint();
     }
+
 
     public void deleteSelectedListItem(){
         // backward run to avoid index issue when deletion
@@ -107,4 +175,61 @@ class ExpandableListPanel extends JPanel{
         listContainer.revalidate();
         listContainer.repaint();
     }
+
+    public List<String> getAllTitles() {
+        List<String> result = new ArrayList<>();
+
+        for (ItemWrapper w : items) {
+
+            String name = w.nameField.getText().trim();
+            String qty  = w.qtyField.getText().trim();
+
+            if (!name.isEmpty()) {
+                if (qty.isEmpty()) {
+                    result.add(name);
+                } else {
+                    result.add(name + " : " + qty);
+                }
+            }
+        }
+
+        return result;
+    }
+
+
+    public List<String> getAllIngredients() {
+        List<String> result = new ArrayList<>();
+
+        for (ItemWrapper w : items) {
+
+            String name = w.nameField.getText().trim();
+            String qty  = w.qtyField.getText().trim();
+
+            if (!name.isEmpty()) {
+                if (qty.isEmpty())
+                    result.add(name);
+                else
+                    result.add(name + " (" + qty + ")");
+            }
+        }
+
+        return result;
+    }
+
+}
+
+class Recipe {
+    String title;
+    String description;
+    List<String> ingredients;
+
+    Recipe(String t, String d, List<String> i) {
+        title = t;
+        description = d;
+        ingredients = i;
+    }
+}
+
+interface RecipeListener {
+    void onRecipeAdded(Recipe recipe);
 }
